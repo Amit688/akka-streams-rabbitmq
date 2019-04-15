@@ -6,14 +6,22 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 
-public class CreateManyQueues {
-
-    public static void main(String[] args) {
-        for (int i = 0; i < 1000; i++) {
-            createAndWriteToAMQPQueue();
-        }
+class Task implements Runnable
+{
+    private int id;
+    Task(int id) {
+        this.id = id;
+    }
+    @Override
+    public void run() {
+        System.out.println("Starting to run task " + this.id);
+        createAndWriteToAMQPQueue();
+        System.out.println("Task " + this.id + " is DONE!");
     }
 
     private static void createAndWriteToAMQPQueue() {
@@ -25,7 +33,8 @@ public class CreateManyQueues {
             conn = factory.newConnection();
             channel = conn.createChannel();
 
-            String queueName = "source-" + System.currentTimeMillis();
+            Random r = new Random();
+            String queueName = "source-" + System.currentTimeMillis() + "-" + r.nextInt(1000000);
             channel.queueDeclare(queueName, false, false, false, null);
             String message = "Hello World!";
             channel.basicPublish("", queueName, null, message.getBytes("UTF-8"));
@@ -54,4 +63,18 @@ public class CreateManyQueues {
         }
 
     }
+}
+public class CreateManyQueues {
+
+    static final int MAX_THREADS = 32;
+
+    public static void main(String[] args) {
+        ExecutorService pool = Executors.newFixedThreadPool(MAX_THREADS);
+        for (int i = 0; i < 100000; i++) {
+            Runnable r = new Task(i);
+            pool.execute(r);
+        }
+    }
+
+
 }
